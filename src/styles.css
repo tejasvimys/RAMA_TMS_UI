@@ -1,0 +1,30 @@
+:root {
+  --color-saffron: #f9a825;       /* lighter saffron */
+  --color-saffron-dark: #f57f17;  /* for hover */
+  --color-maroon-light: #b74b3b;   /* lighter maroon */
+  --color-beige: #fff8e1;
+  --color-dark-brown: #4b2e0d;
+  --color-text-main: #4a3c31;
+  --color-text-light: #fffefb;
+  --color-background: var(--color-beige);
+  --color-primary-hover: var(--color-saffron-dark);
+  --color-button-disabled: #bdbdbd;
+  --font-heading: 'Merriweather', serif;
+  --font-body: 'Roboto', sans-serif;
+}
+
+body {
+  background: var(--color-background);
+  margin: 0;
+  font-family: var(--font-body);
+  color: var(--color-text-main);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
