@@ -59,7 +59,12 @@ function Sidebar({ isOpen, onToggle, auth, onLogout }) {
         icon: "👥",
         path: "/admin/users",
       });
-    }
+      adminSection.items.push({
+    name: "2FA Settings",
+    icon: "🔐",
+    path: "/2fa-settings",
+  });
+}
 
     sections.push(adminSection);
     return sections;

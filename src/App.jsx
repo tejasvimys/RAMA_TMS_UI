@@ -12,6 +12,7 @@ import DonationListPage from './Pages/DonationListPage';
 
 import LoginPage from './Pages/LoginPage';
 import AdminUsersPage from './Pages/AdminUsersPage';
+import TwoFactorSettings from './Pages/TwoFactorSettings';
 import apiClient from './ApiClient/apiClient';
 
 function App() {
@@ -96,6 +97,10 @@ function App() {
 
             {auth.role === 'Admin' && (
               <Route path="/admin/users" element={<AdminUsersPage />} />
+              
+            )}
+              {auth.role === 'Admin' && (
+              <Route path="/2fa-settings" element={<TwoFactorSettings />} /> 
             )}
             {/* add more routes later */}
           </Routes>
