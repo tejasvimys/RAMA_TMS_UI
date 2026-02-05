@@ -37,7 +37,7 @@ const baseMenuSections = [
   },
 ];
 
-function Sidebar({ isOpen, onToggle, auth, onLogout }) {
+function Sidebar({ isOpen, onToggle, auth }) {
   const [openSubmenu, setOpenSubmenu] = useState(null);
 
   // Build final menu sections with admin-only entry
