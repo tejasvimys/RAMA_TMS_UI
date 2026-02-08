@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDonationImport } from '../Logic/useDonationImport';
 
 function AnnualImportPage() {
@@ -6,6 +6,7 @@ function AnnualImportPage() {
     year,
     file,
     summary,
+   jobId,
     loading,
     error,
     handleYearChange,
@@ -13,6 +14,8 @@ function AnnualImportPage() {
     runDryRun,
     runRealImport,
     downloadFailedRows,
+    downloadEmailStatus,
+    downloadReceipts,
   } = useDonationImport();
 
   const currentYear = new Date().getFullYear();
@@ -20,6 +23,13 @@ function AnnualImportPage() {
   for (let y = currentYear - 3; y <= currentYear + 1; y++) {
     years.push(y);
   }
+
+  const [importPage, setImportPage] = useState(1);
+  const pageSize = 50;
+
+  useEffect(() => {
+    setImportPage(1);
+  }, [summary]);
 
   const thMini = {
   padding: '0.35rem 0.45rem',
@@ -71,6 +81,63 @@ const tdMini = {
       {summary && (
         <div
           style={{
+            backgroundColor: '#f5f5f5',
+            borderRadius: 6,
+            padding: '0.5rem 0.75rem',
+            marginBottom: '0.75rem',
+            color: '#333',
+            fontSize: 14,
+          }}
+        >
+          <div>
+            <strong>Email sent:</strong> {summary.emailsSent || 0}
+          </div>
+          <div>
+            <strong>Email failed/skipped:</strong> {summary.emailsFailed || 0}
+          </div>
+          {summary.emailStatuses?.length > 0 && (
+            <button
+              type="button"
+              onClick={downloadEmailStatus}
+              style={{
+                marginTop: '0.5rem',
+                backgroundColor: '#6d4c41',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 6,
+                padding: '0.4rem 1rem',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+              }}
+            >
+              Download Email Status
+            </button>
+          )}
+          {summary.jobId && (
+            <button
+              type="button"
+              onClick={downloadReceipts}
+              style={{
+                marginTop: '0.5rem',
+                marginLeft: '0.5rem',
+                backgroundColor: '#1565c0',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 6,
+                padding: '0.4rem 1rem',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+              }}
+            >
+              Download Receipts (zip)
+            </button>
+          )}
+        </div>
+      )}
+
+      {summary && (
+        <div
+          style={{
             backgroundColor: '#e3f2fd',
             borderRadius: 6,
             padding: '0.5rem 0.75rem',
@@ -112,6 +179,74 @@ const tdMini = {
               Download Failed Rows
             </button>
           )}
+
+      {summary && summary.emailStatuses && summary.emailStatuses.length > 0 && (
+        <div
+          style={{
+            marginBottom: '1.5rem',
+            marginTop: '0.5rem',
+            borderRadius: 10,
+            border: '1px solid #e0e0e0',
+            padding: '0.5rem',
+            backgroundColor: '#fdfdfd',
+          }}
+        >
+          <div
+            style={{
+              fontWeight: '600',
+              marginBottom: '0.5rem',
+              color: 'var(--color-dark-brown)',
+            }}
+          >
+            Email status (live)
+          </div>
+          <div style={{ maxHeight: 260, overflowY: 'auto' }}>
+            <table
+              style={{
+                width: '100%',
+                borderCollapse: 'collapse',
+                fontSize: 13,
+              }}
+            >
+              <thead
+                style={{
+                  background:
+                    'linear-gradient(90deg, #d7ccc8 0%, #bcaaa4 100%)',
+                  color: '#3e2723',
+                }}
+              >
+                <tr>
+                  <th style={thMini}>Donor ID</th>
+                  <th style={thMini}>Name</th>
+                  <th style={thMini}>Email</th>
+                  <th style={thMini}>Status</th>
+                  <th style={thMini}>Attempts</th>
+                  <th style={thMini}>Error</th>
+                </tr>
+              </thead>
+              <tbody>
+                {summary.emailStatuses.map((r, idx) => (
+                  <tr
+                    key={idx}
+                    style={{
+                      backgroundColor: idx % 2 === 0 ? '#fffdf8' : '#fff7e6',
+                    }}
+                  >
+                    <td style={tdMini}>{r.donorId || '-'}</td>
+                    <td style={tdMini}>{r.donorName || '-'}</td>
+                    <td style={tdMini}>{r.email || '-'}</td>
+                    <td style={tdMini}>{r.status || '-'}</td>
+                    <td style={tdMini}>{r.attempts ?? 0}</td>
+                    <td style={tdMini}>
+                      {r.errorMessage ? r.errorMessage : ''}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
         </div>
       )}
 
@@ -133,7 +268,54 @@ const tdMini = {
               color: 'var(--color-dark-brown)',
             }}
           >
-            Last import preview (showing first 50 rows)
+            Last import preview (paginated)
+          </div>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '0.5rem',
+              fontSize: 13,
+            }}
+          >
+            <div>
+              Page {importPage} of {Math.ceil(summary.importedRows.length / pageSize)}
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button
+                type="button"
+                disabled={importPage === 1}
+                onClick={() => setImportPage((p) => Math.max(1, p - 1))}
+                style={{
+                  padding: '0.3rem 0.7rem',
+                  borderRadius: 4,
+                  border: '1px solid #d7ccc8',
+                  backgroundColor: importPage === 1 ? '#f5f5f5' : '#fff',
+                  cursor: importPage === 1 ? 'not-allowed' : 'pointer',
+                }}
+              >
+                Prev
+              </button>
+              <button
+                type="button"
+                disabled={importPage >= Math.ceil(summary.importedRows.length / pageSize)}
+                onClick={() =>
+                  setImportPage((p) => Math.min(Math.ceil(summary.importedRows.length / pageSize), p + 1))
+                }
+                style={{
+                  padding: '0.3rem 0.7rem',
+                  borderRadius: 4,
+                  border: '1px solid #d7ccc8',
+                  backgroundColor:
+                    importPage >= Math.ceil(summary.importedRows.length / pageSize) ? '#f5f5f5' : '#fff',
+                  cursor:
+                    importPage >= Math.ceil(summary.importedRows.length / pageSize) ? 'not-allowed' : 'pointer',
+                }}
+              >
+                Next
+              </button>
+            </div>
           </div>
           <div style={{ maxHeight: 260, overflowY: 'auto' }}>
             <table
@@ -161,9 +343,11 @@ const tdMini = {
                 </tr>
               </thead>
               <tbody>
-                {summary.importedRows.slice(0, 50).map((r, idx) => (
+                {summary.importedRows
+                  .slice((importPage - 1) * pageSize, importPage * pageSize)
+                  .map((r, idx) => (
                   <tr
-                    key={idx}
+                    key={`${importPage}-${idx}`}
                     style={{
                       backgroundColor: idx % 2 === 0 ? '#fffdf8' : '#fff7e6',
                     }}
@@ -274,7 +458,7 @@ const tdMini = {
             boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
           }}
         >
-          {loading ? 'Importing...' : 'Import'}
+          {loading ? 'Processing...' : 'Verify & Send Emails'}
         </button>
       </div>
     </div>

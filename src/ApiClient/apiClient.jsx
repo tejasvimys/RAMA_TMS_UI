@@ -1,8 +1,7 @@
 import axios from 'axios';
 
-//const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5158';
-//const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://10.0.0.29:5158';
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://api.ananthaadirayaramath.org';
+// Default to local API when no env var is provided
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5158';
 
 const apiClient = axios.create({
   baseURL: apiBaseUrl,

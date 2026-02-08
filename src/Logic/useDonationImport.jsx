@@ -1,15 +1,36 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import apiClient from '../ApiClient/apiClient';
 
 export function useDonationImport() {
   const [year, setYear] = useState(new Date().getFullYear());
   const [file, setFile] = useState(null);
   const [summary, setSummary] = useState(null);
+  const [jobId, setJobId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const pollRef = useRef(null);
 
   function handleYearChange(e) {
     setYear(Number(e.target.value));
+  }
+
+  async function downloadReceipts() {
+    const id = summary?.jobId;
+    if (!id) return;
+    try {
+      const res = await apiClient.get(`/api/donationimport/receipts/${id}`, {
+        responseType: 'blob',
+      });
+      const blob = new Blob([res.data], { type: 'application/zip' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.setAttribute('download', `receipts_${summary?.year || ''}_${id}.zip`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (e) {
+      setError('Unable to download receipts.');
+    }
   }
 
   function handleFileChange(e) {
@@ -30,6 +51,11 @@ export function useDonationImport() {
     setLoading(true);
     setError('');
     setSummary(null);
+    setJobId(null);
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
 
     try {
       const formData = new FormData();
@@ -45,6 +71,10 @@ export function useDonationImport() {
       });
 
       setSummary(response.data);
+      if (response.data?.jobId) {
+        setJobId(response.data.jobId);
+        startPolling(response.data.jobId);
+      }
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
       setSummary(null);
@@ -53,6 +83,44 @@ export function useDonationImport() {
     } finally {
       setLoading(false);
     }
+
+  function startPolling(id) {
+    if (!id) return;
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+    }
+
+    pollRef.current = setInterval(async () => {
+      try {
+        const res = await apiClient.get(`/api/donationimport/status/${id}`);
+        const data = res.data;
+        setSummary(data);
+
+        const totalEmails = data?.emailStatuses?.length || 0;
+        const completed = (data?.emailsSent || 0) + (data?.emailsFailed || 0);
+        const anyProcessing = data?.emailStatuses?.some((s) =>
+          ['Processing', 'Pending (dry run)'].includes(s.status)
+        );
+
+        if (totalEmails > 0 && completed >= totalEmails && !anyProcessing) {
+          clearInterval(pollRef.current);
+          pollRef.current = null;
+        }
+      } catch (e) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    }, 1000);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
+  }, []);
   }
 
   function runDryRun() {
@@ -115,10 +183,54 @@ export function useDonationImport() {
     document.body.removeChild(link);
   }
 
+  function downloadEmailStatus() {
+    if (!summary || !summary.emailStatuses || summary.emailStatuses.length === 0) {
+      return;
+    }
+
+    const headers = ['DonorId', 'Email', 'Status', 'Attempts', 'ErrorMessage'];
+    const csvLines = [];
+    csvLines.push(headers.join(','));
+
+    summary.emailStatuses.forEach((r) => {
+      const values = [
+        r.donorId ?? '',
+        r.email ?? '',
+        r.status ?? '',
+        r.attempts ?? 0,
+        (r.errorMessage || '').replace(/"/g, '""'),
+      ];
+
+      const line = values
+        .map((v) => {
+          const str = `${v}`;
+          if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+            return `"${str.replace(/"/g, '""')}"`;
+          }
+          return str;
+        })
+        .join(',');
+
+      csvLines.push(line);
+    });
+
+    const blob = new Blob([csvLines.join('\n')], {
+      type: 'text/csv;charset=utf-8;',
+    });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    const fileName = `EmailStatus_${year}.csv`;
+    link.setAttribute('download', fileName);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
   return {
     year,
     file,
     summary,
+    jobId,
     loading,
     error,
     handleYearChange,
@@ -126,5 +238,7 @@ export function useDonationImport() {
     runDryRun,
     runRealImport,
     downloadFailedRows,
+    downloadEmailStatus,
+    downloadReceipts,
   };
 }
