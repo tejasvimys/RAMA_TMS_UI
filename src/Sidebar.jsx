@@ -64,6 +64,11 @@ function Sidebar({ isOpen, onToggle, auth }) {
     icon: "🔐",
     path: "/2fa-settings",
   });
+      adminSection.items.push({
+        name: "Super Admins",
+        icon: "⭐",
+        path: "/admin/super-admins",
+      });
 }
 
     sections.push(adminSection);

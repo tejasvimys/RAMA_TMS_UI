@@ -7,6 +7,13 @@ function AdminUsersPage() {
   const [savingId, setSavingId] = useState(null);
   const [togglingId, setTogglingId] = useState(null);
   const [error, setError] = useState('');
+  const [createForm, setCreateForm] = useState({
+    email: '',
+    displayName: '',
+    role: 'Collector',
+    isActive: true,
+  });
+  const [creating, setCreating] = useState(false);
   
   const [show2FAModal, setShow2FAModal] = useState(false);
   const [selected2FAUser, setSelected2FAUser] = useState(null);
@@ -24,23 +31,45 @@ function AdminUsersPage() {
       setLoading(true);
       setError('');
       const res = await apiClient.get('/api/admin/users');
-      
-      const usersWithStatus = await Promise.all(
-        res.data.map(async (user) => {
-          try {
-            const statusRes = await apiClient.get(`/api/admin/users/${user.id}/2fa/status`);
-            return { ...user, twoFactorEnabled: statusRes.data.twoFactorEnabled };
-          } catch {
-            return { ...user, twoFactorEnabled: false };
-          }
-        })
-      );
-      setUsers(usersWithStatus);
+      const raw = Array.isArray(res.data) ? res.data : [];
+
+      if (raw.length === 0) {
+        setUsers([]);
+      } else {
+        const usersWithStatus = await Promise.all(
+          raw.map(async (user) => {
+            try {
+              const statusRes = await apiClient.get(`/api/admin/users/${user.id}/2fa/status`);
+              return { ...user, twoFactorEnabled: statusRes.data.twoFactorEnabled };
+            } catch {
+              return { ...user, twoFactorEnabled: false };
+            }
+          })
+        );
+        setUsers(usersWithStatus);
+      }
     } catch (err) {
       console.error(err);
       setError('Failed to load users.');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleCreateUser(e) {
+    e.preventDefault();
+    setError('');
+    setCreating(true);
+    try {
+      await apiClient.post('/api/admin/users', createForm);
+      setCreateForm({ email: '', displayName: '', role: 'Collector', isActive: true });
+      await loadUsers();
+      alert('User created. They will receive an email to set password and enroll 2FA.');
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data || 'Failed to create user.');
+    } finally {
+      setCreating(false);
     }
   }
 
@@ -210,6 +239,75 @@ function AdminUsersPage() {
         Approve new users, manage their roles, and configure 2FA. Only active users can sign in to the RAMA Donations Console.
       </p>
 
+      <div style={{ marginBottom: '1.5rem', padding: '1rem', borderRadius: 12, backgroundColor: '#fff', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
+        <h3 style={{ marginTop: 0, color: '#8b5a2b' }}>Create User</h3>
+        <p style={{ marginTop: 0, color: '#5d4037', fontSize: 13 }}>
+          New users will receive an email to set their password and enroll 2FA. Only the approved super admin emails can be set as Admin for super-admins.
+        </p>
+        <form onSubmit={handleCreateUser} style={{ display: 'grid', gap: '0.75rem', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+          <label style={labelStyle}>
+            Email
+            <input
+              type="email"
+              required
+              value={createForm.email}
+              onChange={(e) => setCreateForm((f) => ({ ...f, email: e.target.value }))}
+              style={inputStyle}
+            />
+          </label>
+          <label style={labelStyle}>
+            Display name
+            <input
+              type="text"
+              required
+              value={createForm.displayName}
+              onChange={(e) => setCreateForm((f) => ({ ...f, displayName: e.target.value }))}
+              style={inputStyle}
+            />
+          </label>
+          <label style={labelStyle}>
+            Role
+            <select
+              value={createForm.role}
+              onChange={(e) => setCreateForm((f) => ({ ...f, role: e.target.value }))}
+              style={inputStyle}
+            >
+              <option value="Admin">Admin</option>
+              <option value="Collector">Collector</option>
+              <option value="Viewer">Viewer</option>
+              <option value="Devotee">Devotee</option>
+              <option value="Teacher">Teacher</option>
+              <option value="Priest">Priest</option>
+            </select>
+          </label>
+          <label style={{ ...labelStyle, flexDirection: 'row', alignItems: 'center', gap: '0.5rem' }}>
+            <input
+              type="checkbox"
+              checked={createForm.isActive}
+              onChange={(e) => setCreateForm((f) => ({ ...f, isActive: e.target.checked }))}
+            />
+            Active
+          </label>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <button
+              type="submit"
+              disabled={creating}
+              style={{
+                padding: '0.6rem 1.2rem',
+                borderRadius: 8,
+                border: 'none',
+                backgroundColor: creating ? '#ccc' : 'var(--color-saffron)',
+                color: '#fff',
+                fontWeight: 600,
+                cursor: creating ? 'default' : 'pointer',
+              }}
+            >
+              {creating ? 'Creating...' : 'Create User'}
+            </button>
+          </div>
+        </form>
+      </div>
+
       {error && (
         <div style={{ marginBottom: '0.75rem', color: '#d32f2f', fontSize: 14 }}>
           {error}
@@ -239,6 +337,9 @@ function AdminUsersPage() {
                     <option value="Admin">Admin</option>
                     <option value="Collector">Collector</option>
                     <option value="Viewer">Viewer</option>
+                    <option value="Devotee">Devotee</option>
+                    <option value="Teacher">Teacher</option>
+                    <option value="Priest">Priest</option>
                   </select>
                 </td>
                 <td style={td}>
@@ -394,6 +495,21 @@ const action2FAButtonStyle = {
   fontSize: 11,
   fontWeight: 600,
   cursor: 'pointer',
+};
+
+const labelStyle = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '0.35rem',
+  color: '#4e342e',
+  fontSize: 14,
+};
+
+const inputStyle = {
+  padding: '0.5rem',
+  borderRadius: 6,
+  border: '1px solid #ccc',
+  fontSize: 14,
 };
 
 export default AdminUsersPage;

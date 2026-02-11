@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import Dashboard from './Pages/Dashboard';
@@ -13,9 +13,12 @@ import DonationListPage from './Pages/DonationListPage';
 import LoginPage from './Pages/LoginPage';
 import AdminUsersPage from './Pages/AdminUsersPage';
 import TwoFactorSettings from './Pages/TwoFactorSettings';
+import SuperAdminPage from './Pages/SuperAdminPage';
 import apiClient from './ApiClient/apiClient';
+import ResetPasswordPage from './Pages/ResetPasswordPage';
 
 function App() {
+  const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [auth, setAuth] = useState(() => {
   const token = localStorage.getItem('appToken');
@@ -52,8 +55,11 @@ function App() {
     delete apiClient.defaults.headers.common.Authorization;
   }
 
-  // If not authenticated, show login page full-screen
+  // Public routes (no auth)
   if (!auth.token) {
+    if (location.pathname.startsWith('/reset-password')) {
+      return <ResetPasswordPage />;
+    }
     return <LoginPage onLogin={handleLogin} />;
   }
   
@@ -101,6 +107,9 @@ function App() {
             )}
               {auth.role === 'Admin' && (
               <Route path="/2fa-settings" element={<TwoFactorSettings />} /> 
+            )}
+             {auth.role === 'Admin' && (
+              <Route path="/admin/super-admins" element={<SuperAdminPage />} />
             )}
             {/* add more routes later */}
           </Routes>
